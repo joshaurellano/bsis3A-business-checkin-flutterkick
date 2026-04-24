@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'barcode_scanner_screen.dart';
 
 import 'add_checkin_screen.dart';
 import '../models/product_model.dart';
@@ -628,49 +629,31 @@ class _PharmaDashboardState extends State<PharmaDashboard> {
   }
 
   // Scanner Functionality
-  void _startScanner() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Scan Product', style: TextStyle(color: Color(0xFF0D47A1))),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.qr_code_scanner, size: 100, color: Color(0xFF2196F3)),
-            const SizedBox(height: 16),
-            const Text('Point camera at product barcode'),
-            const SizedBox(height: 16),
-            TextField(
-              decoration: const InputDecoration(
-                labelText: 'Or enter barcode manually',
-                border: OutlineInputBorder(),
-              ),
-              onSubmitted: (value) {
-                Navigator.pop(context);
-                _findProductByBarcode(value);
-              },
-            ),
-          ],
+Future<void> _startScanner() async {
+  final result = await Navigator.push<String>(
+    context,
+    MaterialPageRoute(builder: (context) => const BarcodeScannerScreen()),
+  );
+
+  if (result != null) {
+    // Try to find matching product
+  final Product? match = products.cast<Product?>().firstWhere(
+    (p) => p!.id == result || p.batchNumber == result,
+    orElse: () => null,
+  );
+
+    if (match != null) {
+      _showProductDetails(match);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No product found for barcode: $result'),
+          backgroundColor: Colors.orange,
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-        ],
-      ),
-    );
+      );
+    }
   }
-
-  void _findProductByBarcode(String barcode) {
-    final product = products.firstWhere(
-      (p) => p.id == barcode || p.batchNumber == barcode,
-      orElse: () => products.first,
-    );
-    _showProductDetails(product);
-  }
-
+}
   // Item Locator
   void _showItemLocator() {
     showDialog(
