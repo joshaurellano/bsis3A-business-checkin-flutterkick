@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import 'add_checkin_screen.dart';
 import '../models/product_model.dart';
 import '../services/firestore_service.dart';
 import 'dart:async';
@@ -38,7 +39,7 @@ class _PharmaDashboardState extends State<PharmaDashboard> {
 
   void _listenToProducts() {
   _productSubscription?.cancel();
-  _firestoreService.getProducts().listen((data) {
+  _productSubscription = _firestoreService.getProducts().listen((data) {
     setState(() {
       products = data;
       _isLoading = false;
@@ -196,10 +197,10 @@ class _PharmaDashboardState extends State<PharmaDashboard> {
                         const SizedBox(height: 24),
                         
                         // INVENTORY Section
-                        const Row(
+                        Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
+                            const Text(
                               'INVENTORY',
                               style: TextStyle(
                                 fontSize: 18,
@@ -208,8 +209,8 @@ class _PharmaDashboardState extends State<PharmaDashboard> {
                               ),
                             ),
                             TextButton(
-                              onPressed: _showAllInventory,
-                              child: Text('View All >'),
+                              onPressed: _showAddProductDialog,
+                              child: const Text('View All >'),
                             ),
                           ],
                         ),
@@ -876,9 +877,13 @@ class _PharmaDashboardState extends State<PharmaDashboard> {
     // Filter products by expiry date
   }
   
-  static void _showAddProductDialog() {
-    // Show add product dialog
-  }
+  void _showAddProductDialog() {
+  Navigator.push(
+    context,
+    MaterialPageRoute(builder: (context) => const AddCheckInScreen()),
+  );
+}
+
 }
 
 // Data Models

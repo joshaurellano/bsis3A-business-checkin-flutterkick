@@ -3,8 +3,11 @@ dependencies:
   cloud_firestore: ^6.3.0
   firebase_auth: ^6.4.0
   firebase_core: ^4.7.0
+  firebase_storage: ^13.3.0
   flutter:
     sdk: flutter
+  geolocator: ^14.0.2
+  image_picker: ^1.2.1
   intl: ^0.18.1
 environment:
   sdk: '^3.11.0'
