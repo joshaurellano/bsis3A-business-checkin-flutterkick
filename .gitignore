@@ -63,3 +63,4 @@ firestore.indexes.json
 storage.rules
 functions/.env
 functions/.env.*
+lib/firebase_options.dart
