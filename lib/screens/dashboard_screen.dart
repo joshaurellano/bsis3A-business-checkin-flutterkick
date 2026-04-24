@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../models/product_model.dart';
+import '../services/firestore_service.dart';
+import 'dart:async';
 class PharmaDashboard extends StatefulWidget {
   const PharmaDashboard({super.key});
 
@@ -9,6 +12,9 @@ class PharmaDashboard extends StatefulWidget {
 }
 
 class _PharmaDashboardState extends State<PharmaDashboard> {
+  StreamSubscription? _productSubscription;
+  final FirestoreService _firestoreService = FirestoreService();
+
   List<Product> products = [];
   List<TransferOrder> transfers = [];
   final List<String> branches = const [
@@ -26,21 +32,31 @@ class _PharmaDashboardState extends State<PharmaDashboard> {
   @override
   void initState() {
     super.initState();
-    _loadProducts();
+    _listenToProducts();
     _loadTransfers();
   }
 
-  void _loadProducts() {
-    Future.delayed(const Duration(milliseconds: 500), () {
-      setState(() {
-        products = Product.generateMockData();
-        _isLoading = false;
-      });
+  void _listenToProducts() {
+  _productSubscription?.cancel();
+  _firestoreService.getProducts().listen((data) {
+    setState(() {
+      products = data;
+      _isLoading = false;
     });
-  }
+  }, onError: (error) {
+    setState(() => _isLoading = false);
+    debugPrint('Firestore error: $error');
+  });
+}
 
   void _loadTransfers() {
     transfers = TransferOrder.generateMockData();
+  }
+
+  @override
+  void dispose() {
+    _productSubscription?.cancel(); 
+    super.dispose();
   }
 
   List<Product> get filteredProducts {
@@ -64,7 +80,7 @@ class _PharmaDashboardState extends State<PharmaDashboard> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
-              onRefresh: () async => _loadProducts(),
+              onRefresh: () async => _listenToProducts(),
               child: CustomScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 slivers: [
@@ -922,97 +938,3 @@ class TransferOrder {
     ];
   }
 }
-
-class Product {
-  final String id;
-  final String name;
-  final String supplier;
-  final String batchNumber;
-  final int stock;
-  final double purchasePrice;
-  final double sellingPrice;
-  final DateTime manufactureDate;
-  final DateTime expiryDate;
-  final DateTime? dateAdded;
-  final ReturnStatus returnStatus;
-
-  Product({
-    required this.id,
-    required this.name,
-    required this.supplier,
-    required this.batchNumber,
-    required this.stock,
-    required this.purchasePrice,
-    required this.sellingPrice,
-    required this.manufactureDate,
-    required this.expiryDate,
-    this.dateAdded,
-    this.returnStatus = ReturnStatus.none,
-  });
-
-  int get daysUntilExpiry {
-    return expiryDate.difference(DateTime.now()).inDays;
-  }
-
-  static List<Product> generateMockData() {
-    return [
-      Product(
-        id: 'PRD001',
-        name: 'Paracetamol 500mg',
-        supplier: 'MediSupply Corp',
-        batchNumber: 'BATCH-2024-001',
-        stock: 150,
-        purchasePrice: 3.50,
-        sellingPrice: 5.50,
-        manufactureDate: DateTime(2024, 1, 15),
-        expiryDate: DateTime.now().add(const Duration(days: 15)),
-      ),
-      Product(
-        id: 'PRD002',
-        name: 'Amoxicillin 250mg',
-        supplier: 'PharmaDistributors Inc',
-        batchNumber: 'BATCH-2024-002',
-        stock: 80,
-        purchasePrice: 8.50,
-        sellingPrice: 12.75,
-        manufactureDate: DateTime(2024, 2, 1),
-        expiryDate: DateTime.now().add(const Duration(days: 45)),
-      ),
-      Product(
-        id: 'PRD003',
-        name: 'Vitamin C 1000mg',
-        supplier: 'HealthPlus Trading',
-        batchNumber: 'BATCH-2024-003',
-        stock: 200,
-        purchasePrice: 5.00,
-        sellingPrice: 8.25,
-        manufactureDate: DateTime(2023, 12, 10),
-        expiryDate: DateTime.now().add(const Duration(days: -5)),
-      ),
-      Product(
-        id: 'PRD004',
-        name: 'Antibiotic Cream',
-        supplier: 'MediSupply Corp',
-        batchNumber: 'BATCH-2024-004',
-        stock: 45,
-        purchasePrice: 10.00,
-        sellingPrice: 15.00,
-        manufactureDate: DateTime(2024, 2, 20),
-        expiryDate: DateTime.now().add(const Duration(days: 10)),
-      ),
-      Product(
-        id: 'PRD005',
-        name: 'Insulin Injections',
-        supplier: 'DiabetesCare Ltd',
-        batchNumber: 'BATCH-2024-005',
-        stock: 30,
-        purchasePrice: 35.00,
-        sellingPrice: 45.50,
-        manufactureDate: DateTime(2024, 1, 5),
-        expiryDate: DateTime.now().add(const Duration(days: 90)),
-      ),
-    ];
-  }
-}
-
-enum ReturnStatus { none, pending, scheduled }
