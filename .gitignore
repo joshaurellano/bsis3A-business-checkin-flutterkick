@@ -43,3 +43,23 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Environment & Secrets
+.env
+.env.*
+*.key
+*.keystore
+*.jks
+secrets.dart
+secrets.json
+
+# Firebase
+google-services.json
+GoogleService-Info.plist
+.firebaserc
+firebase.json
+firestore.rules
+firestore.indexes.json
+storage.rules
+functions/.env
+functions/.env.*

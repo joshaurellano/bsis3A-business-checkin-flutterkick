@@ -418,7 +418,7 @@ class _PharmaDashboardState extends State<PharmaDashboard> {
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 itemCount: expiringProducts.take(3).length,
-                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                separatorBuilder: (_, _) => const SizedBox(width: 8),
                 itemBuilder: (context, index) {
                   final product = expiringProducts[index];
                   return Container(
@@ -538,7 +538,7 @@ class _PharmaDashboardState extends State<PharmaDashboard> {
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
               isExpanded: true,
-              value: selectedBranch,
+              initialValue: selectedBranch,
               decoration: const InputDecoration(
                 labelText: 'Select Target Branch',
                 border: OutlineInputBorder(

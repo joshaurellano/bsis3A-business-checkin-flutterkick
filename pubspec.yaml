@@ -1,5 +1,8 @@
 name: bsis3a_business_checkin_flutterkick
 dependencies:
+  cloud_firestore: ^6.3.0
+  firebase_auth: ^6.4.0
+  firebase_core: ^4.7.0
   flutter:
     sdk: flutter
   intl: ^0.18.1
@@ -7,3 +10,5 @@ environment:
   sdk: '^3.11.0'
 flutter:
   uses-material-design: true
+dev_dependencies:
+  flutter_lints: ^6.0.0
