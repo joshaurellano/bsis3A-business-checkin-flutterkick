@@ -1,17 +1,33 @@
-# bsis3a_business_checkin_flutterkick
+# TruServe Pharmaceutical Check-In Log App
 
-A new Flutter project.
+## Business App Idea
+A pharmaceutical inventory management solution for TruServe Pharmacy that tracks product expiry dates and supplier returns. Field agents can log site visits, capture product photos with expiry status, and record which supplier products need to be returned to - all with GPS-verified location proof.
 
-## Getting Started
+## Collection Name
+**`pharma_visits`** - Stores all pharmaceutical site visit records
 
-This project is a starting point for a Flutter application.
+### Firestore Fields:
+- businessName (String)
+- note (String)
+- createdAt (Timestamp)
+- photoUrl (String)
+- lat (Number)
+- lng (Number)
+- createdBy (String)
+- proofLabel (String)
+- **expiryStatus (String)** - Business-specific: "Good", "Expiring Soon", "Expired"
+- **supplierName (String)** - Business-specific: Name of supplier for returns
 
-A few resources to get you started if this is your first Flutter project:
+## Setup Instructions
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+### 1. Prerequisites
+- Flutter SDK (3.0+)
+- Firebase account
+- Android Studio / VS Code
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+### 2. Firebase Setup
+```bash
+# Create new Firebase project
+# Enable Firestore and Storage
+# Register Android/iOS app
+# Download google-services.json (Android) or GoogleService-Info.plist (iOS)
