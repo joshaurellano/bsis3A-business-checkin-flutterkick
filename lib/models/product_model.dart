@@ -91,6 +91,7 @@ class Product {
     manufactureDate: DateTime.now(),
     expiryDate: _parseExpiryDate(json['expiryDate']),
     dateAdded: (json['createdAt'] as Timestamp?)?.toDate(),
+    returnStatus: ReturnStatus.values[json['returnStatus'] ?? 0],
   );
 }
 
