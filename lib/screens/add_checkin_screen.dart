@@ -103,37 +103,112 @@ class _AddCheckInScreenState extends State<AddCheckInScreen> {
     return null;
   }
 
-  String? _parseMedicineName(String text) {
-    final lines = text.split('\n').map((l) => l.trim()).where((l) => l.isNotEmpty).toList();
+String? _parseMedicineName(String text) {
+  final lines = text.split('\n')
+      .map((l) => l.trim())
+      .where((l) => l.isNotEmpty)
+      .toList();
 
-    final skipKeywords = [
-      'exp', 'expiry', 'expiration', 'batch', 'lot', 'mfg', 'manufactured',
-      'best before', 'use before', 'store', 'keep', 'dosage', 'dose',
-      'warning', 'caution', 'directions', 'ingredients', 'www', 'http',
-      'tel', 'fax', 'reg', 'lic', 'net', 'wt', 'qty',
-    ];
+  // Keywords that strongly indicate a medicine name line
+  final medicineKeywords = [
+    'acid', 'sodium', 'potassium', 'calcium', 'magnesium', 'zinc',
+    'hydrochloride', 'hcl', 'sulfate', 'phosphate', 'citrate',
+    'amlodipine', 'losartan', 'metformin', 'amoxicillin', 'mefenamic',
+    'paracetamol', 'ibuprofen', 'cetirizine', 'omeprazole', 'atorvastatin',
+    'vitamin', 'minerals', 'cholecalciferol', 'ascorbic', 'ferrous',
+    'mg', 'mcg', 'tablet', 'capsule', 'syrup', 'suspension',
+  ];
 
-    for (final line in lines) {
-      final lower = line.toLowerCase();
+  // Words that indicate the line is NOT a medicine name
+  final skipKeywords = [
+    'exp', 'expiry', 'expiration', 'batch', 'lot', 'mfg',
+    'manufactured', 'best before', 'use before', 'store', 'keep',
+    'warning', 'caution', 'directions', 'ingredients', 'www', 'http',
+    'tel', 'fax', 'reg', 'lic', 'distributed', 'imported', 'inc',
+    'ltd', 'corp', 'pharma', 'laboratories', 'tamper', 'resistant',
+    'protection', 'seal', 'broken', 'accept', 'do not', 'for your',
+    'manufactured by', 'distributed by',
+  ];
 
-      // Skip lines with dates
-      if (RegExp(r'\d{2}[\/\-]\d{2,4}').hasMatch(line)) continue;
-      if (RegExp(r'\d{4}[\/\-]\d{2}').hasMatch(line)) continue;
+  // Brands/manufacturers to skip (top-level company names)
+  final manufacturerKeywords = [
+    'unilab', 'gsk', 'pfizer', 'sanofi', 'novartis', 'roche',
+    'abbott', 'bayer', 'merck', 'nelpa', 'sai', 'kopran', 'despina',
+    'parenterals', 'lifesciences',
+  ];
 
-      // Skip short lines
-      if (line.length < 4) continue;
+  String? bestCandidate;
+  int bestScore = 0;
 
-      // Skip lines with skip keywords
-      if (skipKeywords.any((kw) => lower.contains(kw))) continue;
+  for (int i = 0; i < lines.length; i++) {
+    final line = lines[i];
+    final lower = line.toLowerCase();
 
-      // Skip lines that are mostly numbers
-      final digitCount = line.replaceAll(RegExp(r'\D'), '').length;
-      if (digitCount > line.length / 2) continue;
+    // Hard skip
+    if (line.length < 3) continue;
+    if (RegExp(r'^\d+$').hasMatch(line)) continue;
+    if (RegExp(r'\d{2}[\/\-]\d{2,4}').hasMatch(line)) continue;
+    if (skipKeywords.any((kw) => lower.contains(kw))) continue;
+    if (manufacturerKeywords.any((kw) => lower == kw || lower.startsWith('$kw '))) continue;
 
-      return line;
+    int score = 0;
+
+    // Boost score if line contains medicine keywords
+    for (final kw in medicineKeywords) {
+      if (lower.contains(kw)) {
+        score += 10;
+        break;
+      }
     }
-    return null;
+
+    // Boost if line has a + sign (common in combination drugs)
+    if (line.contains('+')) score += 8;
+
+    // Boost if ALL CAPS or Title Case (medicine names are usually prominent)
+    if (line == line.toUpperCase() && line.length > 4) score += 5;
+
+    // Boost if it looks like a proper name (starts with capital)
+    if (line[0] == line[0].toUpperCase()) score += 3;
+
+    // Boost if followed by a dosage line (mg, mcg, ml)
+    if (i + 1 < lines.length) {
+      final nextLine = lines[i + 1].toLowerCase();
+      if (RegExp(r'\d+\s*(mg|mcg|ml|g)\b').hasMatch(nextLine)) {
+        score += 15;
+      }
+    }
+
+    // Penalize very short lines
+    if (line.length < 5) score -= 5;
+
+    // Penalize lines with mostly numbers
+    final digitCount = line.replaceAll(RegExp(r'\D'), '').length;
+    if (digitCount > line.length / 2) score -= 10;
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestCandidate = line;
+    }
   }
+
+  // If we found something with medicine keywords, return it
+  // Otherwise fall back to first clean non-manufacturer line
+  if (bestCandidate != null && bestScore >= 10) {
+    return bestCandidate;
+  }
+
+  // Fallback — skip manufacturer lines and return first clean line
+  for (final line in lines) {
+    final lower = line.toLowerCase();
+    if (line.length < 4) continue;
+    if (manufacturerKeywords.any((kw) => lower == kw || lower.startsWith('$kw '))) continue;
+    if (skipKeywords.any((kw) => lower.contains(kw))) continue;
+    if (RegExp(r'\d{2}[\/\-]\d{2,4}').hasMatch(line)) continue;
+    return line;
+  }
+
+  return null;
+}
 
   // ─── Camera / Gallery ───────────────────────────────────────────────────────
 

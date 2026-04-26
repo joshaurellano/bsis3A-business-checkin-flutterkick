@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 enum ReturnStatus { none, pending, scheduled, completed }
 enum ProductStatus { good, expiringSoon, expired }
 
@@ -78,22 +80,35 @@ class Product {
   }
 
   factory Product.fromJson(Map<String, dynamic> json) {
-    return Product(
-      id: json['id'],
-      name: json['name'],
-      supplier: json['supplier'],
-      batchNumber: json['batchNumber'],
-      stock: json['stock'],
-      purchasePrice: json['purchasePrice'].toDouble(),
-      sellingPrice: json['sellingPrice'].toDouble(),
-      manufactureDate: DateTime.parse(json['manufactureDate']),
-      expiryDate: DateTime.parse(json['expiryDate']),
-      dateAdded: json['dateAdded'] != null ? DateTime.parse(json['dateAdded']) : null,
-      returnStatus: ReturnStatus.values[json['returnStatus']],
-      returnReason: json['returnReason'],
-      returnDate: json['returnDate'] != null ? DateTime.parse(json['returnDate']) : null,
-    );
-  }
+  return Product(
+    id: json['id'] ?? '',
+    name: json['businessName'] ?? 'Unknown',
+    supplier: json['createdBy'] ?? 'Unknown',
+    batchNumber: json['proofLabel'] ?? '',
+    stock: 0,
+    purchasePrice: 0.0,
+    sellingPrice: 0.0,
+    manufactureDate: DateTime.now(),
+    expiryDate: _parseExpiryDate(json['expiryDate']),
+    dateAdded: (json['createdAt'] as Timestamp?)?.toDate(),
+  );
+}
+
+static DateTime _parseExpiryDate(dynamic value) {
+  if (value == null) return DateTime.now().add(const Duration(days: 365));
+  try {
+    final parts = value.toString().split(RegExp(r'[\/\-]'));
+    if (parts.length == 2) {
+      final a = int.tryParse(parts[0]) ?? 1;
+      final b = int.tryParse(parts[1]) ?? 2025;
+      // Handle MM/YYYY or YYYY/MM
+      if (a > 12) return DateTime(a, b);
+      if (b > 12) return DateTime(b, a);
+      return DateTime(2000 + b, a);
+    }
+  } catch (_) {}
+  return DateTime.now().add(const Duration(days: 365));
+}
 
   Product copyWith({
     String? id,
