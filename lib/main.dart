@@ -4,6 +4,8 @@ import './firebase_options.dart';
 
 import './screens/dashboard_screen.dart';
 
+import './screens/landing_screen.dart';
+
 Future <void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
@@ -34,7 +36,8 @@ class MyApp extends StatelessWidget {
           elevation: 0,
         ),
       ),
-      home: const PharmaDashboard(),
+      // home: const PharmaDashboard(),
+      home: const LandingScreen(),
       debugShowCheckedModeBanner: false,
     );
   }
