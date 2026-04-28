@@ -32,8 +32,17 @@ class FirestoreService {
   Future<void> updateReturnStatus(String id, ReturnStatus status, {String? reason}) async {
     await _db.collection(collection).doc(id).update({
       'returnStatus': status.index,
-      if (reason != null) 'returnReason': reason,
+      'returnReason': ?reason,
       'returnDate': DateTime.now().toIso8601String(),
     });
   }
+  Future<String> getUserName(String uid) async {
+  final doc = await FirebaseFirestore.instance
+      .collection('users')
+      .where('uid', isEqualTo: uid)
+      .limit(1)
+      .get();
+      if (doc.docs.isEmpty) return 'Unknown';
+  return doc.docs.first.data()['name'] ?? 'Unknown';
+}
 }

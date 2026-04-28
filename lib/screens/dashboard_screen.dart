@@ -479,7 +479,7 @@ class _PharmaDashboardState extends State<PharmaDashboard> {
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 itemCount: expiringProducts.take(5).length,
-                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                separatorBuilder: (_, _) => const SizedBox(width: 8),
                 itemBuilder: (context, index) {
                   final product = expiringProducts[index];
                   final isExpired = product.stockStatus == 'Expired';
@@ -623,8 +623,10 @@ class _PharmaDashboardState extends State<PharmaDashboard> {
 
   // ─── Product Details ──────────────────────────────────────────────────────
 
-  void _showProductDetails(Product product) {
+  void _showProductDetails(Product product) async {
     final statusColor = _getStatusColor(product);
+      String creatorName = await _firestoreService.getUserName(product.createdBy);
+      
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -676,6 +678,7 @@ class _PharmaDashboardState extends State<PharmaDashboard> {
                   'Location',
                   'lat: ${product.lat!.toStringAsFixed(5)}  •  lng: ${product.lng!.toStringAsFixed(5)}',
                 ),
+                _buildDetailRow('Added By', creatorName)
             ],
           ),
         ),
@@ -744,7 +747,7 @@ class _PharmaDashboardState extends State<PharmaDashboard> {
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
               isExpanded: true,
-              value: selectedBranch,
+              initialValue: selectedBranch,
               decoration: const InputDecoration(
                 labelText: 'Select Target Branch',
                 border: OutlineInputBorder(
