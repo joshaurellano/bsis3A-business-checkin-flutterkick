@@ -1,26 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
-void main() {
-  runApp(const MyApp());
-}
-
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Login',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1565C0)),
-        useMaterial3: true,
-      ),
-      home: const LoginPage(),
-    );
-  }
-}
-
+import './dashboard_screen.dart';
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
@@ -40,6 +21,36 @@ class _LoginPageState extends State<LoginPage> {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+  Future<void> submitLogin() async {
+    try {
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
+      _emailController.clear();
+      _passwordController.clear();
+
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const PharmaDashboard()));
+      
+    } on FirebaseAuthException catch (e) {
+      debugPrint('FirebaseAuthException code: ${e.code}');
+      String message;
+
+      if (e.code == 'invalid-credential') {
+        message = 'Invalid credential';
+      } else {
+        message = 'Login failed. Please try again.';
+      }
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    } catch (e) {
+      debugPrint(e.toString());
+    }
   }
 
   @override
@@ -187,7 +198,10 @@ class _LoginPageState extends State<LoginPage> {
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
-                          onPressed: _handleLogin,
+                          onPressed: (){
+                            if (_formKey.currentState!.validate()) {
+                              submitLogin();
+                              }},
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF1565C0),
                             foregroundColor: Colors.white,
@@ -380,17 +394,5 @@ class _LoginPageState extends State<LoginPage> {
         child: Center(child: child),
       ),
     );
-  }
-
-  void _handleLogin() {
-    if (_formKey.currentState!.validate()) {
-      // Handle login logic here
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Logged in successfully!'),
-          backgroundColor: Color(0xFF1565C0),
-        ),
-      );
-    }
   }
 }

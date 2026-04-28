@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import './firebase_options.dart';
 
-import './screens/dashboard_screen.dart';
-
 import './screens/landing_screen.dart';
 
 Future <void> main() async {
@@ -36,7 +34,6 @@ class MyApp extends StatelessWidget {
           elevation: 0,
         ),
       ),
-      // home: const PharmaDashboard(),
       home: const LandingScreen(),
       debugShowCheckedModeBanner: false,
     );

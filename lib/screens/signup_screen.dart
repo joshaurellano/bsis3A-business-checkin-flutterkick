@@ -1,26 +1,6 @@
 import 'package:flutter/material.dart';
-
-void main() {
-  runApp(const MyApp());
-}
-
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Sign Up',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1565C0)),
-        useMaterial3: true,
-      ),
-      home: const SignUpPage(),
-    );
-  }
-}
-
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
 
@@ -46,6 +26,53 @@ class _SignUpPageState extends State<SignUpPage> {
     _confirmPasswordController.dispose();
     super.dispose();
   }
+
+  Future<void> submitRegister() async {
+    String message;
+    try {
+      final credential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
+      await credential.user!.updateDisplayName(_fullNameController.text.trim());
+
+      String uid = credential.user!.uid;
+      CollectionReference users = FirebaseFirestore.instance.collection('users');
+
+      await users.add({
+        'uid':uid,
+        'name':_fullNameController.text,
+        'email':_emailController.text
+      }).then((value) => message = 'User added')
+      .catchError((error) => message='Faild to add user');
+
+      _emailController.clear();
+      _passwordController.clear();
+      _fullNameController.clear();
+
+      Navigator.pop(context);
+    } on FirebaseAuthException catch (e) {
+      debugPrint('FirebaseAuthException code: ${e.code}');
+      
+
+      if (e.code == 'weak-password') {
+        message = 'The password provided is too weak.';
+      } else if (e.code == 'email-already-in-use') {
+        message = 'This email is already in use.';
+      } else {
+        message = 'Registration failed. Please try again.';
+      }
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    } catch (e) {
+      debugPrint(e.toString());
+    }
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -223,7 +250,11 @@ class _SignUpPageState extends State<SignUpPage> {
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
-                          onPressed: _handleCreateAccount,
+                          onPressed: () {
+                            if (_formKey.currentState!.validate()) {
+                              submitRegister();
+                            }
+                          },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF1565C0),
                             foregroundColor: Colors.white,
@@ -417,15 +448,15 @@ class _SignUpPageState extends State<SignUpPage> {
     );
   }
 
-  void _handleCreateAccount() {
-    if (_formKey.currentState!.validate()) {
-      // Handle account creation logic here
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Account created successfully!'),
-          backgroundColor: Color(0xFF1565C0),
-        ),
-      );
-    }
-  }
+//   void _handleCreateAccount() {
+//     if (_formKey.currentState!.validate()) {
+//       // Handle account creation logic here
+//       ScaffoldMessenger.of(context).showSnackBar(
+//         const SnackBar(
+//           content: Text('Account created successfully!'),
+//           backgroundColor: Color(0xFF1565C0),
+//         ),
+//       );
+//     }
+//   }
 }

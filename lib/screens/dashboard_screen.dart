@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import 'add_checkin_screen.dart';
 import '../models/product_model.dart';
 import '../services/firestore_service.dart';
+
 import 'dart:async';
 class PharmaDashboard extends StatefulWidget {
   const PharmaDashboard({super.key});
@@ -15,7 +17,7 @@ class PharmaDashboard extends StatefulWidget {
 class _PharmaDashboardState extends State<PharmaDashboard> {
   StreamSubscription? _productSubscription;
   final FirestoreService _firestoreService = FirestoreService();
-
+  final user = FirebaseAuth.instance.currentUser;
   List<Product> products = [];
   List<TransferOrder> transfers = [];
   final List<String> branches = const [
@@ -29,6 +31,7 @@ class _PharmaDashboardState extends State<PharmaDashboard> {
   bool _isLoading = true;
   String selectedBranch = 'Main Branch';
   String searchQuery = '';
+
 
   @override
   void initState() {
@@ -108,27 +111,31 @@ class _PharmaDashboardState extends State<PharmaDashboard> {
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  const Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'Welcome,',
-                                        style: TextStyle(
-                                          color: Colors.white70,
-                                          fontSize: 14,
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        const Text(
+                                          'Welcome,',
+                                          style: TextStyle(
+                                            color: Colors.white70,
+                                            fontSize: 14,
+                                          ),
                                         ),
-                                      ),
-                                      Text(
-                                        'Nateli',
-                                   
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 24,
-                                          fontWeight: FontWeight.bold,
+                                        Text(
+                                          user?.displayName ?? user?.email ?? 'User',
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 24,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,   // add this too
+                                          maxLines: 1,
                                         ),
-                                      ),
-                                    ],
+                                      ],
+                                    ),
                                   ),
+                                  const SizedBox(width: 12), 
                                   Container(
                                     padding: const EdgeInsets.all(8),
                                     decoration: BoxDecoration(
