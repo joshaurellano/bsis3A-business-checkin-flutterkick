@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'dart:convert';
@@ -15,23 +16,29 @@ class AddCheckInScreen extends StatefulWidget {
 }
 
 class _AddCheckInScreenState extends State<AddCheckInScreen> {
+  final user = FirebaseAuth.instance.currentUser;
   final _formKey = GlobalKey<FormState>();
 
   // Controllers
-  final _businessNameController = TextEditingController();
+  final _supplierNameController = TextEditingController();
   final _noteController = TextEditingController();
   final _expiryDateController = TextEditingController();
+  final _genericNameController = TextEditingController();
+  final _brandNameController = TextEditingController();
+  final _sellingPriceController = TextEditingController();
 
   // State
   File? _selectedImage;
   double? _lat;
   double? _lng;
   String _stockStatus = 'OK';
+  String _dosageForm = 'Capsule';
   bool _isSaving = false;
   bool _isGettingLocation = false;
   bool _isScanning = false;
 
   final List<String> _stockStatusOptions = ['OK', 'Near Expiry', 'Expired'];
+  final List<String> _dosageFormOptions = ['Capsule', 'Tablet', 'Syrup'];
 
   String get _proofLabel {
     final date = DateFormat('MMdd').format(DateTime.now());
@@ -40,58 +47,69 @@ class _AddCheckInScreenState extends State<AddCheckInScreen> {
 
   @override
   void dispose() {
-    _businessNameController.dispose();
+    _supplierNameController .dispose();
     _noteController.dispose();
     _expiryDateController.dispose();
+    _genericNameController.dispose();
+    _brandNameController.dispose();
+    _sellingPriceController.dispose();
     super.dispose();
   }
 
   // ─── OCR ─────────────────────────────────────────────────────────────────────
 
   Future<void> _extractExpiryFromImage(File imageFile) async {
-  setState(() => _isScanning = true);
-  try {
-    final inputImage = InputImage.fromFile(imageFile);
-    final textRecognizer = TextRecognizer();
-    final recognized = await textRecognizer.processImage(inputImage);
-    await textRecognizer.close();
+    setState(() => _isScanning = true);
+    try {
+      final inputImage = InputImage.fromFile(imageFile);
+      final textRecognizer = TextRecognizer();
+      final recognized = await textRecognizer.processImage(inputImage);
+      await textRecognizer.close();
 
-    final text = recognized.text;
-    debugPrint('OCR result: $text');
+      final text = recognized.text;
+      debugPrint('OCR result: $text');
 
-    // Extract expiry date
-    final expiry = _parseExpiryDate(text);
-    if (expiry != null) {
-      setState(() => _expiryDateController.text = expiry);
-      _showSnack('Expiry date detected: $expiry');
-    } else {
-      _showSnack('Could not detect expiry date. Please enter manually.', isError: true);
+      // Extract expiry date
+      final expiry = _parseExpiryDate(text);
+      if (expiry != null) {
+        setState(() => _expiryDateController.text = expiry);
+        _showSnack('Expiry date detected: $expiry');
+      } else {
+        _showSnack('Could not detect expiry date. Please enter manually.', isError: true);
+      }
+
+      // Extract generic name
+      final genericName = _parseGenericName(text);
+      if (genericName != null && _genericNameController.text.trim().isEmpty) {
+        setState(() => _genericNameController.text = genericName);
+        _showSnack('Generic name detected: $genericName');
+      }
+
+      // Extract brand name
+      final brandName = _parseBrandName(text);
+      if (brandName != null && _brandNameController.text.trim().isEmpty) {
+        setState(() => _brandNameController.text = brandName);
+        _showSnack('Brand name detected: $brandName');
+      }
+
+
+    } catch (e) {
+      debugPrint('OCR error: $e');
+      _showSnack('OCR failed. Please fill in manually.', isError: true);
+    } finally {
+      setState(() => _isScanning = false);
     }
-
-    // Extract medicine name
-    final name = _parseMedicineName(text);
-    if (name != null && _businessNameController.text.trim().isEmpty) {
-      setState(() => _businessNameController.text = name);
-      _showSnack('Medicine name detected: $name');
-    }
-
-  } catch (e) {
-    debugPrint('OCR error: $e');
-    _showSnack('OCR failed. Please fill in manually.', isError: true);
-  } finally {
-    setState(() => _isScanning = false);
   }
-}
+
+  // ─── Parsers ─────────────────────────────────────────────────────────────────
 
   String? _parseExpiryDate(String text) {
     final patterns = [
-      // Labeled patterns first (highest confidence)
       RegExp(r'(?:exp(?:iry)?(?:\s*date)?|best before|bb|use before)[:\s]*(\d{1,2}[\/\-]\d{2,4})', caseSensitive: false),
       RegExp(r'(?:exp(?:iry)?(?:\s*date)?|best before|bb|use before)[:\s]*(\d{4}[\/\-]\d{1,2})', caseSensitive: false),
-      // Unlabeled date patterns
-      RegExp(r'(\d{2}[\/\-]\d{4})'),  // 06/2025
-      RegExp(r'(\d{4}[\/\-]\d{2})'),  // 2025/06
-      RegExp(r'(\d{2}[\/\-]\d{2})'),  // 06/25
+      RegExp(r'(\d{2}[\/\-]\d{4})'),
+      RegExp(r'(\d{4}[\/\-]\d{2})'),
+      RegExp(r'(\d{2}[\/\-]\d{2})'),
     ];
 
     for (final pattern in patterns) {
@@ -103,112 +121,132 @@ class _AddCheckInScreenState extends State<AddCheckInScreen> {
     return null;
   }
 
-String? _parseMedicineName(String text) {
-  final lines = text.split('\n')
-      .map((l) => l.trim())
-      .where((l) => l.isNotEmpty)
-      .toList();
+  String? _parseGenericName(String text) {
+    final lines = text.split('\n')
+        .map((l) => l.trim())
+        .where((l) => l.isNotEmpty)
+        .toList();
 
-  // Keywords that strongly indicate a medicine name line
-  final medicineKeywords = [
-    'acid', 'sodium', 'potassium', 'calcium', 'magnesium', 'zinc',
-    'hydrochloride', 'hcl', 'sulfate', 'phosphate', 'citrate',
-    'amlodipine', 'losartan', 'metformin', 'amoxicillin', 'mefenamic',
-    'paracetamol', 'ibuprofen', 'cetirizine', 'omeprazole', 'atorvastatin',
-    'vitamin', 'minerals', 'cholecalciferol', 'ascorbic', 'ferrous',
-    'mg', 'mcg', 'tablet', 'capsule', 'syrup', 'suspension',
-  ];
+    final medicineKeywords = [
+      'acid', 'sodium', 'potassium', 'calcium', 'magnesium', 'zinc',
+      'hydrochloride', 'hcl', 'sulfate', 'phosphate', 'citrate',
+      'amlodipine', 'losartan', 'metformin', 'amoxicillin', 'mefenamic',
+      'paracetamol', 'ibuprofen', 'cetirizine', 'omeprazole', 'atorvastatin',
+      'vitamin', 'minerals', 'cholecalciferol', 'ascorbic', 'ferrous',
+      'mg', 'mcg', 'tablet', 'capsule', 'syrup', 'suspension',
+    ];
 
-  // Words that indicate the line is NOT a medicine name
-  final skipKeywords = [
-    'exp', 'expiry', 'expiration', 'batch', 'lot', 'mfg',
-    'manufactured', 'best before', 'use before', 'store', 'keep',
-    'warning', 'caution', 'directions', 'ingredients', 'www', 'http',
-    'tel', 'fax', 'reg', 'lic', 'distributed', 'imported', 'inc',
-    'ltd', 'corp', 'pharma', 'laboratories', 'tamper', 'resistant',
-    'protection', 'seal', 'broken', 'accept', 'do not', 'for your',
-    'manufactured by', 'distributed by',
-  ];
+    final skipKeywords = [
+      'exp', 'expiry', 'expiration', 'batch', 'lot', 'mfg',
+      'manufactured', 'best before', 'use before', 'store', 'keep',
+      'warning', 'caution', 'directions', 'ingredients', 'www', 'http',
+      'tel', 'fax', 'reg', 'lic', 'distributed', 'imported', 'inc',
+      'ltd', 'corp', 'pharma', 'laboratories', 'tamper', 'resistant',
+      'protection', 'seal', 'broken', 'accept', 'do not', 'for your',
+      'manufactured by', 'distributed by',
+    ];
 
-  // Brands/manufacturers to skip (top-level company names)
-  final manufacturerKeywords = [
-    'unilab', 'gsk', 'pfizer', 'sanofi', 'novartis', 'roche',
-    'abbott', 'bayer', 'merck', 'nelpa', 'sai', 'kopran', 'despina',
-    'parenterals', 'lifesciences',
-  ];
+    final manufacturerKeywords = [
+      'unilab', 'gsk', 'pfizer', 'sanofi', 'novartis', 'roche',
+      'abbott', 'bayer', 'merck', 'nelpa', 'sai', 'kopran', 'despina',
+      'parenterals', 'lifesciences',
+    ];
 
-  String? bestCandidate;
-  int bestScore = 0;
+    String? bestCandidate;
+    int bestScore = 0;
 
-  for (int i = 0; i < lines.length; i++) {
-    final line = lines[i];
-    final lower = line.toLowerCase();
+    for (int i = 0; i < lines.length; i++) {
+      final line = lines[i];
+      final lower = line.toLowerCase();
 
-    // Hard skip
-    if (line.length < 3) continue;
-    if (RegExp(r'^\d+$').hasMatch(line)) continue;
-    if (RegExp(r'\d{2}[\/\-]\d{2,4}').hasMatch(line)) continue;
-    if (skipKeywords.any((kw) => lower.contains(kw))) continue;
-    if (manufacturerKeywords.any((kw) => lower == kw || lower.startsWith('$kw '))) continue;
+      if (line.length < 3) continue;
+      if (RegExp(r'^\d+$').hasMatch(line)) continue;
+      if (RegExp(r'\d{2}[\/\-]\d{2,4}').hasMatch(line)) continue;
+      if (skipKeywords.any((kw) => lower.contains(kw))) continue;
+      if (manufacturerKeywords.any((kw) => lower == kw || lower.startsWith('$kw '))) continue;
 
-    int score = 0;
+      int score = 0;
 
-    // Boost score if line contains medicine keywords
-    for (final kw in medicineKeywords) {
-      if (lower.contains(kw)) {
-        score += 10;
-        break;
+      for (final kw in medicineKeywords) {
+        if (lower.contains(kw)) {
+          score += 10;
+          break;
+        }
+      }
+
+      if (line.contains('+')) score += 8;
+      if (line == line.toUpperCase() && line.length > 4) score += 5;
+      if (line[0] == line[0].toUpperCase()) score += 3;
+
+      if (i + 1 < lines.length) {
+        final nextLine = lines[i + 1].toLowerCase();
+        if (RegExp(r'\d+\s*(mg|mcg|ml|g)\b').hasMatch(nextLine)) {
+          score += 15;
+        }
+      }
+
+      if (line.length < 5) score -= 5;
+      final digitCount = line.replaceAll(RegExp(r'\D'), '').length;
+      if (digitCount > line.length / 2) score -= 10;
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestCandidate = line;
       }
     }
 
-    // Boost if line has a + sign (common in combination drugs)
-    if (line.contains('+')) score += 8;
+    if (bestCandidate != null && bestScore >= 10) return bestCandidate;
 
-    // Boost if ALL CAPS or Title Case (medicine names are usually prominent)
-    if (line == line.toUpperCase() && line.length > 4) score += 5;
+    for (final line in lines) {
+      final lower = line.toLowerCase();
+      if (line.length < 4) continue;
+      if (manufacturerKeywords.any((kw) => lower == kw || lower.startsWith('$kw '))) continue;
+      if (skipKeywords.any((kw) => lower.contains(kw))) continue;
+      if (RegExp(r'\d{2}[\/\-]\d{2,4}').hasMatch(line)) continue;
+      return line;
+    }
 
-    // Boost if it looks like a proper name (starts with capital)
-    if (line[0] == line[0].toUpperCase()) score += 3;
+    return null;
+  }
 
-    // Boost if followed by a dosage line (mg, mcg, ml)
-    if (i + 1 < lines.length) {
-      final nextLine = lines[i + 1].toLowerCase();
-      if (RegExp(r'\d+\s*(mg|mcg|ml|g)\b').hasMatch(nextLine)) {
-        score += 15;
+  String? _parseBrandName(String text) {
+    final lines = text.split('\n')
+        .map((l) => l.trim())
+        .where((l) => l.isNotEmpty)
+        .toList();
+
+    final skipKeywords = [
+      'exp', 'expiry', 'batch', 'lot', 'mfg', 'manufactured', 'store',
+      'warning', 'caution', 'directions', 'www', 'http', 'tel', 'fax',
+      'distributed', 'imported', 'tamper', 'resistant', 'protection',
+      'seal', 'broken', 'accept', 'do not', 'for your', 'mg', 'mcg',
+      'tablet', 'capsule', 'film-coated', 'enteric', 'proton pump',
+      'angiotensin', 'receptor', 'blocker', 'channel', 'inhibitor',
+      'anti-inflammatory', 'non-steroid', 'fenamate', 'supplement',
+    ];
+
+    final genericName = _parseGenericName(text)?.toLowerCase();
+    int genericIndex = -1;
+    if (genericName != null) {
+      for (int i = 0; i < lines.length; i++) {
+        if (lines[i].toLowerCase().contains(genericName.split(' ').first)) {
+          genericIndex = i;
+          break;
+        }
       }
     }
 
-    // Penalize very short lines
-    if (line.length < 5) score -= 5;
-
-    // Penalize lines with mostly numbers
-    final digitCount = line.replaceAll(RegExp(r'\D'), '').length;
-    if (digitCount > line.length / 2) score -= 10;
-
-    if (score > bestScore) {
-      bestScore = score;
-      bestCandidate = line;
+    final searchStart = genericIndex >= 0 ? genericIndex + 1 : 0;
+    for (int i = searchStart; i < lines.length && i < searchStart + 4; i++) {
+      final line = lines[i];
+      final lower = line.toLowerCase();
+      if (line.length < 3) continue;
+      if (RegExp(r'\d{2}[\/\-]\d{2,4}').hasMatch(line)) continue;
+      if (skipKeywords.any((kw) => lower.contains(kw))) continue;
+      if (line.length > 2 && line.length < 40) return line;
     }
+    return null;
   }
-
-  // If we found something with medicine keywords, return it
-  // Otherwise fall back to first clean non-manufacturer line
-  if (bestCandidate != null && bestScore >= 10) {
-    return bestCandidate;
-  }
-
-  // Fallback — skip manufacturer lines and return first clean line
-  for (final line in lines) {
-    final lower = line.toLowerCase();
-    if (line.length < 4) continue;
-    if (manufacturerKeywords.any((kw) => lower == kw || lower.startsWith('$kw '))) continue;
-    if (skipKeywords.any((kw) => lower.contains(kw))) continue;
-    if (RegExp(r'\d{2}[\/\-]\d{2,4}').hasMatch(line)) continue;
-    return line;
-  }
-
-  return null;
-}
 
   // ─── Camera / Gallery ───────────────────────────────────────────────────────
 
@@ -222,7 +260,7 @@ String? _parseMedicineName(String text) {
     if (picked != null) {
       final file = File(picked.path);
       setState(() => _selectedImage = file);
-      _showSnack('Scanning for expiry date...');
+      _showSnack('Scanning medicine package...');
       await _extractExpiryFromImage(file);
     }
   }
@@ -250,7 +288,7 @@ String? _parseMedicineName(String text) {
             ListTile(
               leading: const Icon(Icons.camera_alt, color: Color(0xFF0D47A1)),
               title: const Text('Take Photo'),
-              subtitle: const Text('Camera will scan for expiry date automatically'),
+              subtitle: const Text('Camera will scan the medicine package automatically'),
               onTap: () {
                 Navigator.pop(context);
                 _pickImage(ImageSource.camera);
@@ -259,7 +297,7 @@ String? _parseMedicineName(String text) {
             ListTile(
               leading: const Icon(Icons.photo_library, color: Color(0xFF0D47A1)),
               title: const Text('Choose from Gallery'),
-              subtitle: const Text('Pick a photo to scan for expiry date'),
+              subtitle: const Text('Pick a photo to scan the medicine package'),
               onTap: () {
                 Navigator.pop(context);
                 _pickImage(ImageSource.gallery);
@@ -297,9 +335,7 @@ String? _parseMedicineName(String text) {
       }
 
       final position = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
-        ),
+        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
       );
 
       setState(() {
@@ -338,16 +374,20 @@ String? _parseMedicineName(String text) {
 
       await docRef.set({
         'id': docId,
-        'businessName': _businessNameController.text.trim(),
+        'supplierName': _supplierNameController.text.trim(),
+        'genericName': _genericNameController.text.trim(),
+        'brandName': _brandNameController.text.trim(),
         'note': _noteController.text.trim(),
         'createdAt': FieldValue.serverTimestamp(),
         'photoBase64': base64Image,
         'lat': _lat,
         'lng': _lng,
-        'createdBy': 'FlutterKick',
         'proofLabel': _proofLabel,
+        'dosageForm': _dosageForm,
+        'sellingPrice': _sellingPriceController.text,
         'expiryDate': _expiryDateController.text.trim(),
         'stockStatus': _stockStatus,
+        'createdBy': user?.uid,
       });
 
       if (mounted) {
@@ -356,7 +396,7 @@ String? _parseMedicineName(String text) {
         if (mounted) Navigator.pop(context);
       }
     } catch (e) {
-      debugPrint('SAVE ERROR: $e');          
+      debugPrint('SAVE ERROR: $e');
       debugPrint('SAVE ERROR TYPE: ${e.runtimeType}');
       _showSnack('Save failed: $e', isError: true);
     } finally {
@@ -432,7 +472,7 @@ String? _parseMedicineName(String text) {
               const SizedBox(height: 8),
 
               _buildTextField(
-                controller: _businessNameController,
+                controller: _supplierNameController ,
                 label: 'Business / Pharmacy Name',
                 icon: Icons.business,
                 validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
@@ -449,7 +489,7 @@ String? _parseMedicineName(String text) {
               const SizedBox(height: 20),
 
               // ── Photo + OCR ──
-              _sectionLabel('PHOTO  •  TAP TO SCAN EXPIRY DATE'),
+              _sectionLabel('PHOTO  •  TAP TO SCAN MEDICINE PACKAGE'),
               const SizedBox(height: 8),
 
               GestureDetector(
@@ -473,7 +513,7 @@ String? _parseMedicineName(String text) {
                           children: [
                             CircularProgressIndicator(),
                             SizedBox(height: 12),
-                            Text('Scanning for expiry date...',
+                            Text('Scanning medicine package...',
                                 style: TextStyle(color: Colors.grey)),
                           ],
                         )
@@ -490,7 +530,7 @@ String? _parseMedicineName(String text) {
                                 Text('Tap to capture medicine package',
                                     style: TextStyle(color: Colors.grey[500], fontSize: 13)),
                                 const SizedBox(height: 4),
-                                Text('Expiry date will be auto-detected',
+                                Text('Generic name, brand & expiry will be auto-detected',
                                     style: TextStyle(color: Colors.grey[400], fontSize: 11)),
                               ],
                             ),
@@ -518,38 +558,12 @@ String? _parseMedicineName(String text) {
               _sectionLabel('MEDICINE DETAILS'),
               const SizedBox(height: 8),
 
-              // Expiry Date — auto-filled by OCR, still editable
-              Stack(
-                children: [
-                  TextFormField(
-                    controller: _expiryDateController,
-                    readOnly: false,
-                    onTap: _pickExpiryDate,
-                    decoration: InputDecoration(
-                      labelText: 'Expiry Date',
-                      hintText: 'Auto-filled from scan or tap to pick',
-                      prefixIcon: const Icon(Icons.calendar_month, color: Color(0xFF0D47A1)),
-                      suffixIcon: _isScanning
-                          ? const Padding(
-                              padding: EdgeInsets.all(12),
-                              child: SizedBox(
-                                width: 16, height: 16,
-                                child: CircularProgressIndicator(strokeWidth: 2),
-                              ),
-                            )
-                          : const Icon(Icons.edit_calendar, color: Color(0xFF0D47A1)),
-                      filled: true,
-                      fillColor: Colors.white,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Color(0xFF0D47A1)),
-                      ),
-                    ),
-                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
-                  ),
-                ],
+              // Generic Name
+              _buildTextField(
+                controller: _genericNameController,
+                label: 'Generic Name',
+                icon: Icons.science,
+                validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
               ),
               const SizedBox(height: 6),
               Text(
@@ -557,6 +571,86 @@ String? _parseMedicineName(String text) {
                 style: TextStyle(fontSize: 10, color: Colors.grey[500]),
               ),
               const SizedBox(height: 12),
+
+              // Brand Name
+              _buildTextField(
+                controller: _brandNameController,
+                label: 'Brand Name',
+                icon: Icons.label,
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Auto-filled by OCR scan. Tap to correct if needed.',
+                style: TextStyle(fontSize: 10, color: Colors.grey[500]),
+              ),
+              const SizedBox(height: 12),
+
+
+              // Expiry Date
+              TextFormField(
+                controller: _expiryDateController,
+                readOnly: false,
+                onTap: _pickExpiryDate,
+                decoration: InputDecoration(
+                  labelText: 'Expiry Date',
+                  hintText: 'Auto-filled from scan or tap to pick',
+                  prefixIcon: const Icon(Icons.calendar_month, color: Color(0xFF0D47A1)),
+                  suffixIcon: _isScanning
+                      ? const Padding(
+                          padding: EdgeInsets.all(12),
+                          child: SizedBox(
+                            width: 16, height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        )
+                      : const Icon(Icons.edit_calendar, color: Color(0xFF0D47A1)),
+                  filled: true,
+                  fillColor: Colors.white,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFF0D47A1)),
+                  ),
+                ),
+                validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Auto-filled by OCR scan. Tap to correct if needed.',
+                style: TextStyle(fontSize: 10, color: Colors.grey[500]),
+              ),
+              const SizedBox(height: 12),
+
+              // Selling Price 
+              _buildTextField(
+                controller: _sellingPriceController,
+                label: 'Selling Price',
+                icon: Icons.label,
+                keyboardType: TextInputType.numberWithOptions(decimal: true),
+              ),
+              const SizedBox(height: 20),
+
+              // Dosage Form dropdown
+              DropdownButtonFormField<String>(
+                initialValue: _dosageForm,
+                isExpanded: true,
+                decoration: InputDecoration(
+                  labelText: 'Dosage Form',
+                  prefixIcon: const Icon(Icons.inventory_2, color: Color(0xFF0D47A1)),
+                  filled: true,
+                  fillColor: Colors.white,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFF0D47A1)),
+                  ),
+                ),
+                items: _dosageFormOptions.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                onChanged: (v) => setState(() => _dosageForm = v!),
+              ),
+              const SizedBox(height: 20),
 
               // Stock Status dropdown
               DropdownButtonFormField<String>(
@@ -688,6 +782,7 @@ String? _parseMedicineName(String text) {
     required TextEditingController controller,
     required String label,
     required IconData icon,
+    TextInputType? keyboardType,
     int maxLines = 1,
     String? Function(String?)? validator,
   }) {
@@ -695,6 +790,7 @@ String? _parseMedicineName(String text) {
       controller: controller,
       maxLines: maxLines,
       validator: validator,
+      keyboardType: keyboardType,
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: Icon(icon, color: const Color(0xFF0D47A1)),

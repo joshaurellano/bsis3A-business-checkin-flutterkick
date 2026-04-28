@@ -5,41 +5,49 @@ enum ProductStatus { good, expiringSoon, expired }
 
 class Product {
   final String id;
-  final String name;
-  final String supplier;
-  final String batchNumber;
-  final int stock;
-  final double purchasePrice;
-  final double sellingPrice;
-  final DateTime manufactureDate;
-  final DateTime expiryDate;
-  final DateTime? dateAdded;
+  final String genericName;
+  final String brandName;
+  final String supplierName;
+  final String dosageForm;
+  final String sellingPrice;
+  final String expiryDate;
+  final String stockStatus;
+  final String note;
+  final String proofLabel;
+  final String createdBy;
+  final double? lat;
+  final double? lng;
+  final DateTime? createdAt;
   final ReturnStatus returnStatus;
   final String? returnReason;
   final DateTime? returnDate;
 
   Product({
     required this.id,
-    required this.name,
-    required this.supplier,
-    required this.batchNumber,
-    required this.stock,
-    required this.purchasePrice,
+    required this.genericName,
+    required this.brandName,
+    required this.supplierName,
+    required this.dosageForm,
     required this.sellingPrice,
-    required this.manufactureDate,
     required this.expiryDate,
-    this.dateAdded,
+    required this.stockStatus,
+    required this.note,
+    required this.proofLabel,
+    required this.createdBy,
+    this.lat,
+    this.lng,
+    this.createdAt,
     this.returnStatus = ReturnStatus.none,
     this.returnReason,
     this.returnDate,
   });
 
-  int get daysUntilExpiry {
-    return expiryDate.difference(DateTime.now()).inDays;
-  }
+  // ─── Computed ─────────────────────────────────────────────────────────────
 
-  int get daysSinceManufacture {
-    return DateTime.now().difference(manufactureDate).inDays;
+  DateTime get parsedExpiryDate => _parseExpiryDate(expiryDate);
+
+  int get daysUntilExpiry {
+    return parsedExpiryDate.difference(DateTime.now()).inDays;
   }
 
   ProductStatus get status {
@@ -49,30 +57,28 @@ class Product {
   }
 
   bool get eligibleForReturn {
-    return (daysUntilExpiry <= 30 || daysUntilExpiry <= 0) && 
-           returnStatus != ReturnStatus.completed;
+    return (daysUntilExpiry <= 30 || daysUntilExpiry <= 0) &&
+        returnStatus != ReturnStatus.completed;
   }
 
-  double get totalValue {
-    return stock * purchasePrice;
-  }
-
-  double get potentialProfit {
-    return stock * (sellingPrice - purchasePrice);
-  }
+  // ─── Serialization ────────────────────────────────────────────────────────
 
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'name': name,
-      'supplier': supplier,
-      'batchNumber': batchNumber,
-      'stock': stock,
-      'purchasePrice': purchasePrice,
+      'genericName': genericName,
+      'brandName': brandName,
+      'supplierName': supplierName,
+      'dosageForm': dosageForm,
       'sellingPrice': sellingPrice,
-      'manufactureDate': manufactureDate.toIso8601String(),
-      'expiryDate': expiryDate.toIso8601String(),
-      'dateAdded': dateAdded?.toIso8601String(),
+      'expiryDate': expiryDate,
+      'stockStatus': stockStatus,
+      'note': note,
+      'proofLabel': proofLabel,
+      'createdBy': createdBy,
+      'lat': lat,
+      'lng': lng,
+      'createdAt': createdAt?.toIso8601String(),
       'returnStatus': returnStatus.index,
       'returnReason': returnReason,
       'returnDate': returnDate?.toIso8601String(),
@@ -80,63 +86,84 @@ class Product {
   }
 
   factory Product.fromJson(Map<String, dynamic> json) {
-  return Product(
-    id: json['id'] ?? '',
-    name: json['businessName'] ?? 'Unknown',
-    supplier: json['createdBy'] ?? 'Unknown',
-    batchNumber: json['proofLabel'] ?? '',
-    stock: 0,
-    purchasePrice: 0.0,
-    sellingPrice: 0.0,
-    manufactureDate: DateTime.now(),
-    expiryDate: _parseExpiryDate(json['expiryDate']),
-    dateAdded: (json['createdAt'] as Timestamp?)?.toDate(),
-    returnStatus: ReturnStatus.values[json['returnStatus'] ?? 0],
-  );
-}
+    return Product(
+      id: json['id'] ?? '',
+      genericName: json['genericName'] ?? 'Unknown',
+      brandName: json['brandName'] ?? '',
+      supplierName: json['supplierName'] ?? 'Unknown',
+      dosageForm: json['dosageForm'] ?? 'Tablet',
+      sellingPrice: json['sellingPrice']?.toString() ?? '0.00',
+      expiryDate: json['expiryDate']?.toString() ?? '',
+      stockStatus: json['stockStatus'] ?? 'OK',
+      note: json['note'] ?? '',
+      proofLabel: json['proofLabel'] ?? '',
+      createdBy: json['createdBy'] ?? '',
+      lat: (json['lat'] as num?)?.toDouble(),
+      lng: (json['lng'] as num?)?.toDouble(),
+      createdAt: (json['createdAt'] as Timestamp?)?.toDate(),
+      returnStatus: ReturnStatus.values[json['returnStatus'] ?? 0],
+      returnReason: json['returnReason'],
+      returnDate: json['returnDate'] != null
+          ? DateTime.tryParse(json['returnDate'])
+          : null,
+    );
+  }
 
-static DateTime _parseExpiryDate(dynamic value) {
-  if (value == null) return DateTime.now().add(const Duration(days: 365));
-  try {
-    final parts = value.toString().split(RegExp(r'[\/\-]'));
-    if (parts.length == 2) {
-      final a = int.tryParse(parts[0]) ?? 1;
-      final b = int.tryParse(parts[1]) ?? 2025;
-      // Handle MM/YYYY or YYYY/MM
-      if (a > 12) return DateTime(a, b);
-      if (b > 12) return DateTime(b, a);
-      return DateTime(2000 + b, a);
+  static DateTime _parseExpiryDate(dynamic value) {
+    if (value == null || value.toString().isEmpty) {
+      return DateTime.now().add(const Duration(days: 365));
     }
-  } catch (_) {}
-  return DateTime.now().add(const Duration(days: 365));
-}
+    // Try ISO format first (yyyy-MM-dd)
+    final iso = DateTime.tryParse(value.toString());
+    if (iso != null) return iso;
+    // Try MM/YYYY or YYYY/MM or MM/YY
+    try {
+      final parts = value.toString().split(RegExp(r'[\/\-]'));
+      if (parts.length == 2) {
+        final a = int.tryParse(parts[0]) ?? 1;
+        final b = int.tryParse(parts[1]) ?? 2025;
+        if (a > 12) return DateTime(a, b);
+        if (b > 12) return DateTime(b, a);
+        return DateTime(2000 + b, a);
+      }
+    } catch (_) {}
+    return DateTime.now().add(const Duration(days: 365));
+  }
 
   Product copyWith({
     String? id,
-    String? name,
-    String? supplier,
-    String? batchNumber,
-    int? stock,
-    double? purchasePrice,
-    double? sellingPrice,
-    DateTime? manufactureDate,
-    DateTime? expiryDate,
-    DateTime? dateAdded,
+    String? genericName,
+    String? brandName,
+    String? supplierName,
+    String? dosageForm,
+    String? sellingPrice,
+    String? expiryDate,
+    String? stockStatus,
+    String? note,
+    String? proofLabel,
+    String? createdBy,
+    double? lat,
+    double? lng,
+    DateTime? createdAt,
     ReturnStatus? returnStatus,
     String? returnReason,
     DateTime? returnDate,
   }) {
     return Product(
       id: id ?? this.id,
-      name: name ?? this.name,
-      supplier: supplier ?? this.supplier,
-      batchNumber: batchNumber ?? this.batchNumber,
-      stock: stock ?? this.stock,
-      purchasePrice: purchasePrice ?? this.purchasePrice,
+      genericName: genericName ?? this.genericName,
+      brandName: brandName ?? this.brandName,
+      supplierName: supplierName ?? this.supplierName,
+      dosageForm: dosageForm ?? this.dosageForm,
       sellingPrice: sellingPrice ?? this.sellingPrice,
-      manufactureDate: manufactureDate ?? this.manufactureDate,
       expiryDate: expiryDate ?? this.expiryDate,
-      dateAdded: dateAdded ?? this.dateAdded,
+      stockStatus: stockStatus ?? this.stockStatus,
+      note: note ?? this.note,
+      proofLabel: proofLabel ?? this.proofLabel,
+      createdBy: createdBy ?? this.createdBy,
+      lat: lat ?? this.lat,
+      lng: lng ?? this.lng,
+      createdAt: createdAt ?? this.createdAt,
       returnStatus: returnStatus ?? this.returnStatus,
       returnReason: returnReason ?? this.returnReason,
       returnDate: returnDate ?? this.returnDate,
@@ -147,78 +174,76 @@ static DateTime _parseExpiryDate(dynamic value) {
     return [
       Product(
         id: 'PRD001',
-        name: 'Paracetamol 500mg',
-        supplier: 'MediSupply Corp',
-        batchNumber: 'BATCH-2024-001',
-        stock: 150,
-        purchasePrice: 3.50,
-        sellingPrice: 5.50,
-        manufactureDate: DateTime(2024, 1, 15),
-        expiryDate: DateTime.now().add(const Duration(days: 15)),
-        dateAdded: DateTime(2024, 1, 20),
+        genericName: 'Paracetamol',
+        brandName: 'Biogesic',
+        supplierName: 'Unilab',
+        dosageForm: 'Tablet',
+        sellingPrice: '5.50',
+        expiryDate: '2025-06-15',
+        stockStatus: 'Near Expiry',
+        note: 'Fast moving item',
+        proofLabel: 'FlutterKick-MedLog-0428',
+        createdBy: 'uid_demo',
+        createdAt: DateTime.now().subtract(const Duration(days: 2)),
       ),
       Product(
         id: 'PRD002',
-        name: 'Amoxicillin 250mg',
-        supplier: 'PharmaDistributors Inc',
-        batchNumber: 'BATCH-2024-002',
-        stock: 80,
-        purchasePrice: 8.50,
-        sellingPrice: 12.75,
-        manufactureDate: DateTime(2024, 2, 1),
-        expiryDate: DateTime.now().add(const Duration(days: 45)),
-        dateAdded: DateTime(2024, 2, 5),
+        genericName: 'Amoxicillin',
+        brandName: 'Amoxil',
+        supplierName: 'GSK',
+        dosageForm: 'Capsule',
+        sellingPrice: '12.75',
+        expiryDate: '2026-03-01',
+        stockStatus: 'OK',
+        note: 'Keep refrigerated',
+        proofLabel: 'FlutterKick-MedLog-0428',
+        createdBy: 'uid_demo',
+        createdAt: DateTime.now().subtract(const Duration(days: 5)),
       ),
       Product(
         id: 'PRD003',
-        name: 'Vitamin C 1000mg',
-        supplier: 'HealthPlus Trading',
-        batchNumber: 'BATCH-2024-003',
-        stock: 200,
-        purchasePrice: 5.00,
-        sellingPrice: 8.25,
-        manufactureDate: DateTime(2023, 12, 10),
-        expiryDate: DateTime.now().add(const Duration(days: -5)),
-        dateAdded: DateTime(2023, 12, 15),
+        genericName: 'Omeprazole',
+        brandName: 'Inhibita',
+        supplierName: 'Nelpa Lifesciences',
+        dosageForm: 'Capsule',
+        sellingPrice: '8.00',
+        expiryDate: '2024-12-01',
+        stockStatus: 'Expired',
+        note: 'For return processing',
+        proofLabel: 'FlutterKick-MedLog-0428',
+        createdBy: 'uid_demo',
+        createdAt: DateTime.now().subtract(const Duration(days: 10)),
         returnStatus: ReturnStatus.pending,
         returnReason: 'Expired product',
         returnDate: DateTime.now().subtract(const Duration(days: 2)),
       ),
       Product(
         id: 'PRD004',
-        name: 'Antibiotic Cream',
-        supplier: 'MediSupply Corp',
-        batchNumber: 'BATCH-2024-004',
-        stock: 45,
-        purchasePrice: 10.00,
-        sellingPrice: 15.00,
-        manufactureDate: DateTime(2024, 2, 20),
-        expiryDate: DateTime.now().add(const Duration(days: 10)),
-        dateAdded: DateTime(2024, 2, 25),
+        genericName: 'Losartan Potassium',
+        brandName: 'Losan 50',
+        supplierName: 'Despina Pharma',
+        dosageForm: 'Tablet',
+        sellingPrice: '9.50',
+        expiryDate: '2025-05-01',
+        stockStatus: 'Near Expiry',
+        note: 'Check stock levels',
+        proofLabel: 'FlutterKick-MedLog-0428',
+        createdBy: 'uid_demo',
+        createdAt: DateTime.now().subtract(const Duration(days: 1)),
       ),
       Product(
         id: 'PRD005',
-        name: 'Insulin Injections',
-        supplier: 'DiabetesCare Ltd',
-        batchNumber: 'BATCH-2024-005',
-        stock: 30,
-        purchasePrice: 35.00,
-        sellingPrice: 45.50,
-        manufactureDate: DateTime(2024, 1, 5),
-        expiryDate: DateTime.now().add(const Duration(days: 90)),
-        dateAdded: DateTime(2024, 1, 10),
-      ),
-      Product(
-        id: 'PRD006',
-        name: 'Blood Pressure Monitor',
-        supplier: 'MedTech Solutions',
-        batchNumber: 'BATCH-2024-006',
-        stock: 12,
-        purchasePrice: 450.00,
-        sellingPrice: 599.00,
-        manufactureDate: DateTime(2024, 1, 20),
-        expiryDate: DateTime.now().add(const Duration(days: 180)),
-        dateAdded: DateTime(2024, 1, 25),
+        genericName: 'Cholecalciferol + Minerals',
+        brandName: 'Caltrate Silver Advance',
+        supplierName: 'GSK',
+        dosageForm: 'Tablet',
+        sellingPrice: '18.00',
+        expiryDate: '2027-01-01',
+        stockStatus: 'OK',
+        note: 'For adults 50+',
+        proofLabel: 'FlutterKick-MedLog-0428',
+        createdBy: 'uid_demo',
+        createdAt: DateTime.now().subtract(const Duration(days: 3)),
       ),
     ];
   }

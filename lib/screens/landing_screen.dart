@@ -25,7 +25,6 @@ class _LandingScreenState extends State<LandingScreen>
   static const Color _primary = Color(0xFF1565C0);
   static const Color _primaryDark = Color(0xFF0D47A1);
   static const Color _primaryLight = Color(0xFFE3F0FF);
-  static const Color _accent = Color(0xFF2196F3);
   static const Color _cream = Color(0xFFF5F8FF);
   static const Color _ink = Color(0xFF0D1B2A);
   static const Color _muted = Color(0xFF6B7A99);
@@ -222,7 +221,7 @@ class _LandingScreenState extends State<LandingScreen>
               'By continuing, you agree to our Terms & Privacy Policy.',
               style: TextStyle(
                 fontSize: 11,
-                color: _muted.withOpacity(0.75),
+                color: _muted.withValues(alpha:0.75),
               ),
               textAlign: TextAlign.center,
             ),
@@ -239,10 +238,10 @@ class _LandingScreenState extends State<LandingScreen>
           width: 36,
           height: 36,
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.18),
+            color: Colors.white.withValues(alpha:0.18),
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
-              color: Colors.white.withOpacity(0.3),
+              color: Colors.white.withValues(alpha:0.3),
               width: 1,
             ),
           ),
@@ -269,10 +268,10 @@ class _LandingScreenState extends State<LandingScreen>
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.15),
+          color: Colors.white.withValues(alpha:0.15),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: Colors.white.withOpacity(0.35),
+            color: Colors.white.withValues(alpha:0.35),
             width: 1,
           ),
         ),
@@ -292,10 +291,10 @@ class _LandingScreenState extends State<LandingScreen>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.18),
+        color: Colors.white.withValues(alpha:0.18),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: Colors.white.withOpacity(0.3),
+          color: Colors.white.withValues(alpha:0.3),
           width: 0.8,
         ),
       ),
@@ -352,7 +351,7 @@ class _LandingScreenState extends State<LandingScreen>
     return Text(
       'Track inventory, manage returns, and streamline\nyour pharmacy operations — all in one place.',
       style: TextStyle(
-        color: Colors.white.withOpacity(0.78),
+        color: Colors.white.withValues(alpha:0.78),
         fontSize: 14,
         height: 1.6,
         fontWeight: FontWeight.w300,
@@ -368,7 +367,7 @@ class _LandingScreenState extends State<LandingScreen>
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: _primaryDark.withOpacity(0.15),
+            color: _primaryDark.withValues(alpha:0.15),
             blurRadius: 24,
             offset: const Offset(0, 8),
           ),
@@ -444,7 +443,7 @@ class _LandingScreenState extends State<LandingScreen>
             'Dispensed items this week',
             style: TextStyle(
               fontSize: 11,
-              color: _muted.withOpacity(0.7),
+              color: _muted.withValues(alpha:0.7),
             ),
           ),
         ],
@@ -577,7 +576,7 @@ class _LandingScreenState extends State<LandingScreen>
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 1.2,
-                color: _muted.withOpacity(0.8),
+                color: _muted.withValues(alpha:0.8),
               ),
             ),
             const SizedBox(height: 20),
@@ -716,7 +715,7 @@ class _LandingScreenState extends State<LandingScreen>
                   Text(
                     'already trust TruServe',
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.7),
+                      color: Colors.white.withValues(alpha:0.7),
                       fontSize: 13,
                     ),
                   ),
@@ -783,7 +782,7 @@ class _GridPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = Colors.white.withOpacity(0.04)
+      ..color = Colors.white.withValues(alpha:0.04)
       ..strokeWidth = 1;
 
     const spacing = 36.0;

@@ -248,7 +248,7 @@ class _LoginPageState extends State<LoginPage> {
                               'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/768px-Google_%22G%22_logo.svg.png',
                               width: 28,
                               height: 28,
-                              errorBuilder: (_, __, ___) => const Icon(
+                              errorBuilder: (_, _, _) => const Icon(
                                 Icons.g_mobiledata,
                                 size: 28,
                                 color: Colors.red,
@@ -385,7 +385,7 @@ class _LoginPageState extends State<LoginPage> {
               : null,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.08),
+              color: Colors.black.withValues(alpha: 0.08),
               blurRadius: 6,
               offset: const Offset(0, 2),
             ),
