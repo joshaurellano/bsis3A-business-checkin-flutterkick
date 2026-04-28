@@ -15,9 +15,11 @@ class Product {
   final String note;
   final String proofLabel;
   final String createdBy;
+  final String? updatedBy;
   final double? lat;
   final double? lng;
   final DateTime? createdAt;
+  final DateTime? updatedAt;
   final ReturnStatus returnStatus;
   final String? returnReason;
   final DateTime? returnDate;
@@ -37,6 +39,8 @@ class Product {
     this.lat,
     this.lng,
     this.createdAt,
+    this.updatedBy,
+    this.updatedAt,
     this.returnStatus = ReturnStatus.none,
     this.returnReason,
     this.returnDate,
@@ -76,12 +80,14 @@ class Product {
       'note': note,
       'proofLabel': proofLabel,
       'createdBy': createdBy,
+      'updatedBy': updatedBy,
       'lat': lat,
       'lng': lng,
-      'createdAt': createdAt?.toIso8601String(),
+      'createdAt': createdAt != null ? Timestamp.fromDate(createdAt!) : null,
+      'updatedAt': updatedAt != null ? Timestamp.fromDate(updatedAt!) : FieldValue.serverTimestamp(),
       'returnStatus': returnStatus.index,
       'returnReason': returnReason,
-      'returnDate': returnDate?.toIso8601String(),
+      'returnDate': returnDate != null ? Timestamp.fromDate(returnDate!) : null,
     };
   }
 
@@ -98,14 +104,24 @@ class Product {
       note: json['note'] ?? '',
       proofLabel: json['proofLabel'] ?? '',
       createdBy: json['createdBy'] ?? '',
+      updatedBy: json['updatedBy'] ?? '',
+      updatedAt: json['updatedAt'] is Timestamp
+        ? (json['updatedAt'] as Timestamp).toDate()
+        : null,
       lat: (json['lat'] as num?)?.toDouble(),
       lng: (json['lng'] as num?)?.toDouble(),
-      createdAt: (json['createdAt'] as Timestamp?)?.toDate(),
+      createdAt: json['createdAt'] is Timestamp
+        ? (json['createdAt'] as Timestamp).toDate()
+        : json['createdAt'] is String
+            ? DateTime.tryParse(json['createdAt'])
+            : null,
       returnStatus: ReturnStatus.values[json['returnStatus'] ?? 0],
       returnReason: json['returnReason'],
-      returnDate: json['returnDate'] != null
-          ? DateTime.tryParse(json['returnDate'])
-          : null,
+      returnDate: json['returnDate'] is Timestamp
+        ? (json['returnDate'] as Timestamp).toDate()
+        : json['returnDate'] is String
+            ? DateTime.tryParse(json['returnDate'])
+            : null,
     );
   }
 
@@ -142,9 +158,11 @@ class Product {
     String? note,
     String? proofLabel,
     String? createdBy,
+    String? updatedBy,
     double? lat,
     double? lng,
     DateTime? createdAt,
+    DateTime? updatedAt,
     ReturnStatus? returnStatus,
     String? returnReason,
     DateTime? returnDate,

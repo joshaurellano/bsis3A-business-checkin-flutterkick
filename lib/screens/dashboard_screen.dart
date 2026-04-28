@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_slidable/flutter_slidable.dart';
 
 import 'add_checkin_screen.dart';
+import './edit_product_screen.dart';
 import '../models/product_model.dart';
 import '../services/firestore_service.dart';
 
@@ -42,6 +44,7 @@ class _PharmaDashboardState extends State<PharmaDashboard> {
   void _listenToProducts() {
     _productSubscription?.cancel();
     _productSubscription = _firestoreService.getProducts().listen((data) {
+      debugPrint('Products received: ${data.length}');
       setState(() {
         products = data;
         _isLoading = false;
@@ -54,6 +57,102 @@ class _PharmaDashboardState extends State<PharmaDashboard> {
 
   void _loadTransfers() {
     transfers = TransferOrder.generateMockData();
+  }
+
+  // Removing products
+  void _showDeleteConfirmation(Product product) {
+  showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      title: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.red.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(Icons.delete_outline, color: Colors.red),
+          ),
+          const SizedBox(width: 12),
+          const Text(
+            'Delete Product',
+            style: TextStyle(color: Colors.red, fontSize: 16),
+          ),
+        ],
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          RichText(
+            text: TextSpan(
+              style: const TextStyle(fontSize: 13, color: Colors.black87),
+              children: [
+                const TextSpan(text: 'You are about to delete '),
+                TextSpan(
+                  text: product.genericName,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                if (product.brandName.isNotEmpty)
+                  TextSpan(text: ' (${product.brandName})'),
+                const TextSpan(text: '. This action cannot be undone.'),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.red.withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.red.withValues(alpha: 0.2)),
+            ),
+            child: const Row(
+              children: [
+                Icon(Icons.warning_amber, color: Colors.red, size: 16),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'All records associated with this product will be permanently removed.',
+                    style: TextStyle(fontSize: 11, color: Colors.red),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton.icon(
+          onPressed: () {
+            _firestoreService.deleteProduct(product.id);
+            Navigator.pop(context);
+            
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.red,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+          icon: const Icon(Icons.delete_forever, color: Colors.white, size: 16),
+          label: const Text('Delete', style: TextStyle(color: Colors.white)),
+        ),
+      ],
+    ),
+  );
+}
+
+  // Show edit screen
+  void _showEditScreen(Product product) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => EditProductScreen(product: product)),
+    );
   }
 
   @override
@@ -550,73 +649,100 @@ class _PharmaDashboardState extends State<PharmaDashboard> {
 
   Widget _buildProductCard(Product product) {
     final statusColor = _getStatusColor(product);
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        leading: CircleAvatar(
-          backgroundColor: statusColor.withValues(alpha: 0.1),
-          child: Icon(Icons.medication, color: statusColor),
-        ),
-        title: Text(
-          product.genericName,
-          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (product.brandName.isNotEmpty)
-              Text(
-                product.brandName,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey[700],
-                  fontStyle: FontStyle.italic,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Slidable(
+          startActionPane: ActionPane(
+            motion: StretchMotion(),
+            children: [
+              SlidableAction(onPressed: ((context) =>{
+                _showEditScreen(product)
+              }),
+              icon: Icons.edit,
+              backgroundColor: Colors.blue,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(12),
+                bottomLeft: Radius.circular(12),
+              ),
+              ), SlidableAction(onPressed: ((context){
+                _showDeleteConfirmation(product);
+              }),
+              icon: Icons.delete,
+              backgroundColor: Colors.red,
+              )
+            ]),
+          child: Card(
+            margin: EdgeInsets.zero,
+            elevation: 2,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),          
+              child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                leading: CircleAvatar(
+                  backgroundColor: statusColor.withValues(alpha: 0.1),
+                  child: Icon(Icons.medication, color: statusColor),
                 ),
-              ),
-            Text(
-              'Supplier: ${product.supplierName}',
-              style: const TextStyle(fontSize: 11),
-            ),
-            Text(
-              '${product.dosageForm}  •  Exp: ${product.expiryDate}',
-              style: const TextStyle(fontSize: 11),
-            ),
-          ],
-        ),
-        trailing: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: statusColor.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                product.stockStatus,
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: statusColor,
+                title: Text(
+                  product.genericName,
+                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
                 ),
-              ),
-            ),
-            const SizedBox(height: 4),
-            if (product.sellingPrice.isNotEmpty && product.sellingPrice != '0.00')
-              Text(
-                '₱${product.sellingPrice}',
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF0D47A1),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (product.brandName.isNotEmpty)
+                      Text(
+                        product.brandName,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[700],
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    Text(
+                      'Supplier: ${product.supplierName}',
+                      style: const TextStyle(fontSize: 11),
+                    ),
+                    Text(
+                      '${product.dosageForm}  •  Exp: ${product.expiryDate}',
+                      style: const TextStyle(fontSize: 11),
+                    ),
+                  ],
                 ),
+                trailing: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: statusColor.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        product.stockStatus,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: statusColor,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    if (product.sellingPrice.isNotEmpty && product.sellingPrice != '0.00')
+                      Text(
+                        '₱${product.sellingPrice}',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF0D47A1),
+                        ),
+                      ),
+                  ],
+                ),
+                onTap: () => _showProductDetails(product),
               ),
-          ],
+          ),
         ),
-        onTap: () => _showProductDetails(product),
       ),
     );
   }
@@ -626,7 +752,9 @@ class _PharmaDashboardState extends State<PharmaDashboard> {
   void _showProductDetails(Product product) async {
     final statusColor = _getStatusColor(product);
       String creatorName = await _firestoreService.getUserName(product.createdBy);
-      
+      String updaterName = product.updatedBy != null && product.updatedBy!.isNotEmpty
+        ? await _firestoreService.getUserName(product.updatedBy!)
+        : 'Not updated';
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -678,7 +806,13 @@ class _PharmaDashboardState extends State<PharmaDashboard> {
                   'Location',
                   'lat: ${product.lat!.toStringAsFixed(5)}  •  lng: ${product.lng!.toStringAsFixed(5)}',
                 ),
-                _buildDetailRow('Added By', creatorName)
+                _buildDetailRow('Added By', creatorName),
+                _buildDetailRow('Updated By', updaterName),
+                if (product.updatedAt != null)
+                _buildDetailRow(
+                  'Updated At',
+                  DateFormat('MMM dd, yyyy – hh:mm a').format(product.updatedAt!),
+                ),
             ],
           ),
         ),
