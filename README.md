@@ -31,3 +31,11 @@ A pharmaceutical inventory management solution for TruServe Pharmacy that tracks
 # Enable Firestore and Storage
 # Register Android/iOS app
 # Download google-services.json (Android) or GoogleService-Info.plist (iOS)
+
+
+CREATED BY:
+Team FlutterKick
+-Joshua Anthony Aurellano
+-Dominnica Narvato
+-Aron Delos Santos
+-Marvin Nobela
