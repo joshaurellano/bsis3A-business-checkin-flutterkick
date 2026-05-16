@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
@@ -212,47 +211,6 @@ Future<void> _scanInvoice(File imageFile) async {
     );
   }
 
-  Future<String> _extractBatchFromImage(File imageFile) async {
-  try {
-    final inputImage = InputImage.fromFile(imageFile);
-    final recognizer = TextRecognizer();
-    final result = await recognizer.processImage(inputImage);
-    await recognizer.close();
-
-    final lines = result.text
-        .split('\n')
-        .map((l) => l.trim())
-        .where((l) => l.isNotEmpty)
-        .toList();
-
-    for (final line in lines) {
-      // Look for explicit batch/lot label first
-      final labeled = RegExp(
-        r'(?:batch|lot|b\/n|lot\s*no|batch\s*no)[:\s#]*([A-Z0-9]{4,12})',
-        caseSensitive: false,
-      ).firstMatch(line);
-      if (labeled != null) return labeled.group(1) ?? '';
-    }
-
-    // No labeled match — collect all candidate tokens that look like batch numbers
-    final candidates = <String>[];
-    for (final line in lines) {
-      final matches = RegExp(
-        r'\b([A-Z]{1,3}[0-9]{3,10}[A-Z]?)\b|'
-        r'\b([0-9]{2,4}[A-Z]{2,5}[0-9]{0,6})\b',
-      ).allMatches(line);
-      for (final m in matches) {
-        final token = m.group(1) ?? m.group(2) ?? '';
-        if (token.isNotEmpty) candidates.add(token);
-      }
-    }
-
-    return candidates.isNotEmpty ? candidates.first : '';
-  } catch (e) {
-    debugPrint('Batch OCR error: $e');
-    return '';
-  }
-}
 
   // ─── Save ─────────────────────────────────────────────────────────────────
 
