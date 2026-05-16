@@ -344,8 +344,7 @@ Future<void> _scanInvoice(File imageFile) async {
                               Text('Tap to scan invoice',
                                   style: TextStyle(color: Colors.grey[500])),
                               const SizedBox(height: 4),
-                              Text('Supports 626 Pharma & CharmMed formats',
-                                  style: TextStyle(color: Colors.grey[400], fontSize: 11)),
+                              
                             ],
                           ),
               ),
@@ -402,7 +401,7 @@ Future<void> _scanInvoice(File imageFile) async {
                   children: [
                     Icon(Icons.inbox, size: 40, color: Colors.grey),
                     SizedBox(height: 8),
-                    Text('No items detected yet.\nScan an invoice or tap + Add Row.',
+                    Text('Scan an invoice or tap + Add Row.',
                         textAlign: TextAlign.center,
                         style: TextStyle(color: Colors.grey)),
                   ],

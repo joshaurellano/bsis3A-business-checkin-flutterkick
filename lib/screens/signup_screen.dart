@@ -180,7 +180,7 @@ class _SignUpPageState extends State<SignUpPage> {
                       const SizedBox(height: 8),
                       _buildTextField(
                         controller: _passwordController,
-                        hintText: 'Atleast 8 Chracters',
+                        hintText: 'must be atleast 8 characters',
                         prefixIcon: Icons.lock_outline,
                         obscureText: _obscurePassword,
                         suffixIcon: IconButton(
@@ -215,7 +215,7 @@ class _SignUpPageState extends State<SignUpPage> {
                       const SizedBox(height: 8),
                       _buildTextField(
                         controller: _confirmPasswordController,
-                        hintText: '',
+                        hintText: 'must be atleast 8 characters',
                         prefixIcon: Icons.lock_outline,
                         obscureText: _obscureConfirmPassword,
                         suffixIcon: IconButton(

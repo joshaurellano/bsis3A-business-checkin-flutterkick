@@ -621,7 +621,7 @@ class _PharmaDashboardState extends State<PharmaDashboard>
             MaterialPageRoute(builder: (_) => const AddCheckInScreen())),
         backgroundColor: const Color(0xFF0D47A1),
         icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text('Check In', style: TextStyle(color: Colors.white)),
+        label: const Text('Scan Invoice', style: TextStyle(color: Colors.white)),
       ),
     );
   }
