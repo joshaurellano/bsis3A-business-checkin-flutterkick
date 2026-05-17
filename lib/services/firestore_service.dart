@@ -17,10 +17,6 @@ class FirestoreService {
             }).toList());
   }
 
-  Future<void> addProduct(Product product) async {
-    await _db.collection(collection).doc(product.id).set(product.toJson());
-  }
-
   Future<void> updateProduct(Product product) async {
     await _db.collection(collection).doc(product.id).update(product.toJson());
   }

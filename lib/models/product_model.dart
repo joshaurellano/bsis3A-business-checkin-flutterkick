@@ -101,9 +101,6 @@ class Product {
       returnWindowStatus == ReturnWindowStatus.returnable ||
       returnWindowStatus == ReturnWindowStatus.returnSoon;
 
-  bool get eligibleForReturn =>
-      isReturnable && returnStatus != ReturnStatus.completed;
-
   // ─── Serialization ────────────────────────────────────────────────────────
 
   Map<String, dynamic> toJson() => {

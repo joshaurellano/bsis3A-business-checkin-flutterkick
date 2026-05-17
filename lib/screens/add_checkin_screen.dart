@@ -5,10 +5,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-const _veryfiClientId = 'vrfJojdcOpZUiWO2SKv3Pe9K8xDbFmdNiaFoS3V';
-const _veryfiUsername = 'josh.aurellano01';
-const _veryfiApiKey = '057562d5a331cc2c47ff78a12378c19a';
+final _veryfiClientId = dotenv.env['VERYFI_CLIENT_ID'] ?? '';
+final _veryfiUsername = dotenv.env['VERYFI_USERNAME'] ?? '';
+final _veryfiApiKey = dotenv.env['VERYFI_API_KEY'] ?? '';
 
 // ─── Model ────────────────────────────────────────────────────────────────────
 
