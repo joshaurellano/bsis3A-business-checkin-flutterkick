@@ -903,14 +903,14 @@ class _PharmaDashboardState extends State<PharmaDashboard>
 
           // ── Expired ──
           if (expired.isNotEmpty) ...[
-            _sectionLabel('✕ EXPIRED — RETURN TO SUPPLIER', Colors.red),
+            _sectionLabel('✕ EXPIRED — FOR DISPOSAL / WRITE-OFF', Colors.red),
             const SizedBox(height: 6),
             const Text(
-              'These medicines have already expired and should be returned.',
+              'These medicines have already expired and can no longer be returned to the supplier.',
               style: TextStyle(fontSize: 11, color: Colors.grey),
             ),
             const SizedBox(height: 10),
-            ...expired.map((r) => _returnCandidateCard(r, Colors.red)),
+            ...expired.map((r) => _returnCandidateCard(r, Colors.red, canReturn: false)),
             const SizedBox(height: 20),
           ],
 
@@ -923,7 +923,7 @@ class _PharmaDashboardState extends State<PharmaDashboard>
               style: TextStyle(fontSize: 11, color: Colors.grey),
             ),
             const SizedBox(height: 10),
-            ...expiringSoon.map((r) => _returnCandidateCard(r, Colors.orange)),
+            ...expiringSoon.map((r) => _returnCandidateCard(r, Colors.orange, canReturn: true)),
             const SizedBox(height: 20),
           ],
 
@@ -1057,7 +1057,7 @@ class _PharmaDashboardState extends State<PharmaDashboard>
     );
   }
 
-  Widget _returnCandidateCard(InvoiceRecord record, Color color) {
+  Widget _returnCandidateCard(InvoiceRecord record, Color color, {bool canReturn = true}) {
     final days = record.parsedExpiry.difference(DateTime.now()).inDays;
     final label = record.isExpired
         ? 'Expired ${(-days)}d ago'
@@ -2132,25 +2132,54 @@ class _MedicineDetailSheetState extends State<_MedicineDetailSheet> {
             const SizedBox(height: 20),
 
             // ── Return button (shows form when tapped) ──
-            if (!_showReturnForm)
-              SizedBox(
-                width: double.infinity,
-                height: 46,
-                child: ElevatedButton.icon(
-                  onPressed: _currentQty > 0
-                      ? () => setState(() => _showReturnForm = true)
-                      : null,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.orange,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
+           if (!_showReturnForm) ...[ 
+              if (!record.isReturnable)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
                   ),
-                  icon: const Icon(Icons.assignment_return, size: 18),
-                  label: const Text('Return Items',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.block, color: Colors.red, size: 18),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          record.isExpired
+                              ? 'This medicine is expired and cannot be returned.'
+                              : 'This medicine is within 6 months of expiry and cannot be returned.',
+                          style: const TextStyle(
+                              color: Colors.red,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
+              if (record.isReturnable)
+                SizedBox(
+                  width: double.infinity,
+                  height: 46,
+                  child: ElevatedButton.icon(
+                    onPressed: _currentQty > 0
+                        ? () => setState(() => _showReturnForm = true)
+                        : null,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                    icon: const Icon(Icons.assignment_return, size: 18),
+                    label: const Text('Return Items',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                ),
+            ],
 
             // ── Return form ──
             if (_showReturnForm) ...[

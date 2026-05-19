@@ -78,4 +78,5 @@ class InvoiceRecord {
     final diff = parsedExpiry.difference(DateTime.now()).inDays;
     return diff >= 0 && diff <= 180;
   }
+  bool get isReturnable => !isExpired && !isExpiringSoon;
 }
